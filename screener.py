@@ -23,7 +23,7 @@ def main():
 
     print('Time taken: ', time() - start_time)
     print(
-        "These stocks have been filtered based on:\na) EMA18 higher than EMA50 on last trading day\nb)EMA18 is lower than EMA50 on previous day\nc) Stock has more than 50 candles")
+        "These stocks have been filtered based on:\na) EMA18 higher than EMA50 on last trading day\nb) EMA18 is lower than EMA50 on previous day\nc) Stock has more than 50 candles")
 
     for stock in screened_list:
         print(stock)
