@@ -31,7 +31,7 @@ Feel free to make any pull requests.**
 
 1. Run the main script:
    ```bash
-   python main.py
+   python scraper.py
    ```
    
 2. The script will fetch stock data, compute EMA values, and display stocks that meet the screening criteria.
