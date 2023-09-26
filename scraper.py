@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import re
 from tqdm import tqdm
 from time import time
+import os
 
 
 # Functions to scrape ticker code from i3investor.com #
@@ -67,6 +68,9 @@ def update_tickers_number(tickers):
     # Track start time
     start_time = time()
 
+    # Ensure the data directory exists
+    if not os.path.exists('data'):
+        os.makedirs('data')
 
     # Loop through tickers and get their numbers
     for ticker in tqdm(tickers):
@@ -74,13 +78,14 @@ def update_tickers_number(tickers):
             number = get_ticker_code(ticker)
 
             # Write the ticker and its number to the file immediately using append
-            with open('ticker_map.txt', 'a') as file:
+            with open('data/ticker_map.txt', 'a') as file:
                 file.write(f"{ticker} : {number}\n")
 
         except Exception as e:
             print(f"Unexpected error for {ticker}: {e}")
 
     print('Time taken: ', time() - start_time)
+
 
 
 
@@ -106,7 +111,7 @@ def get_stock_list():
 
 
 if __name__ == "__main__":
-    print(len(get_stock_list()))
+    update_tickers_number(get_stock_list())
 
 
 
