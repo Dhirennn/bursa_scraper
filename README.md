@@ -36,7 +36,8 @@ Feel free to make any pull requests.**
    
 2. The script will fetch stock data, compute EMA values, and display stocks that meet the screening criteria.
 
-## 🗺 Using `ticker_map.txt` (IF ALL YOU WANT IS A MAPPING OF THE TICKER (e.g: GENM) TO STOCK CODE (e.g: 4715), then just download this file and use it.
+## 🗺 Using `ticker_map.txt`
+### NOTE: IF ALL YOU WANT IS A MAPPING OF THE TICKER (e.g: GENM) TO STOCK CODE (e.g: 4715), then just download this file and use it.
 
 The `ticker_map.txt` file is essential for mapping stock tickers on BURSA Malaysia to their respective stock codes. This mapping ensures that the correct stock data is fetched from Yahoo Finance using the `yfinance` library.
 
