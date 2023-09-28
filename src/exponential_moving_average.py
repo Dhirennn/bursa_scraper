@@ -20,7 +20,6 @@ def calculate_EMA(price, day):
     return price.ewm(span=day).mean()
 
 
-
 def add_EMA_to_df(df):
     """
     Add EMA18, EMA50, EMA100, EMA200 to the dataframe.
@@ -30,10 +29,10 @@ def add_EMA_to_df(df):
     Returns:
 
     """
-    df['EMA18'] = calculate_EMA(df['Close'], 18)
-    df['EMA50'] = calculate_EMA(df['Close'], 50)
-    df['EMA100'] = calculate_EMA(df['Close'], 100)
-    df['EMA200'] = calculate_EMA(df['Close'], 200)
+    df["EMA18"] = calculate_EMA(df["Close"], 18)
+    df["EMA50"] = calculate_EMA(df["Close"], 50)
+    df["EMA100"] = calculate_EMA(df["Close"], 100)
+    df["EMA200"] = calculate_EMA(df["Close"], 200)
 
 
 def check_EMA_crossing(df):
@@ -51,10 +50,10 @@ def check_EMA_crossing(df):
     if len(df) < 51:
         return False
 
-    # Check if EMA18 crossed above EMA50 in the last trading day
-    recent_cross = df.iloc[-1]['EMA18'] > df.iloc[-1]['EMA50'] and df.iloc[-2]['EMA18'] < df.iloc[-2]['EMA50']
-
-    return recent_cross
+    return (
+        df.iloc[-1]["EMA18"] > df.iloc[-1]["EMA50"]
+        and df.iloc[-2]["EMA18"] < df.iloc[-2]["EMA50"]
+    )
 
 
 def process_ema(stock):
@@ -78,13 +77,6 @@ def process_ema(stock):
 if __name__ == "__main__":
 
     # Example usage
-    genm_data = get_stock_price('GENM', "2000-01-01", "2023-09-29")
+    genm_data = get_stock_price("GENM", "2000-01-01", "2023-09-29")
     add_EMA_to_df(genm_data)
     print(genm_data)
-
-
-
-
-
-
-
