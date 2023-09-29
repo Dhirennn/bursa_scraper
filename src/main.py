@@ -4,6 +4,8 @@ from scraper import get_stock_list
 from exponential_moving_average import process_ema
 from tqdm import tqdm
 
+from src.ticker_data_retrieval import get_stock_code, load_ticker_map
+
 
 def main():
     start_time = time()
@@ -25,9 +27,11 @@ def main():
         "These stocks have been filtered based on:\na) EMA18 higher than EMA50 on last trading day\nb) EMA18 is lower than EMA50 on previous day\nc) Stock has more than 50 candles"
     )
 
-    for stock in screened_list:
-        print(stock)
+    ticker_map = load_ticker_map('../data/ticker_map.txt')
 
+    for stock in screened_list:
+        stock_code = get_stock_code(stock, ticker_map)
+        print(f"Ticker: {stock}, Code: {stock_code}")
 
 if __name__ == "__main__":
     main()

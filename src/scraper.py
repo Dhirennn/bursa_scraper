@@ -79,7 +79,7 @@ def update_tickers_number(tickers):
             number = get_ticker_code(ticker)
 
             # Write the ticker and its number to the file immediately using append
-            with open("data/ticker_map.txt", "a") as file:
+            with open("../data/ticker_map.txt", "a") as file:
                 file.write(f"{ticker} : {number}\n")
 
         except Exception as e:

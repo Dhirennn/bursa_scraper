@@ -42,7 +42,7 @@ def get_stock_code(ticker, ticker_map):
 
 def get_stock_price(ticker, start_date, end_date):
     # Load the ticker map from the file
-    ticker_map = load_ticker_map("data/ticker_map.txt")
+    ticker_map = load_ticker_map("../data/ticker_map.txt")
 
     stock_code = get_stock_code(ticker, ticker_map)
 
