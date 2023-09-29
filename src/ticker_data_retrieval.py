@@ -4,6 +4,7 @@ This module contains functions for retrieving stock data from Yahoo Finance.
 import yfinance as yf
 import pandas as pd
 
+
 def load_ticker_map(filename):
     """
     Load ticker to stock code mapping from a file into a dictionary.
@@ -16,10 +17,10 @@ def load_ticker_map(filename):
     """
     ticker_map = {}
 
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         for line in file:
             # Split each line at the colon to get the ticker and stock code
-            ticker, stock_code = line.strip().split(' : ')
+            ticker, stock_code = line.strip().split(" : ")
             ticker_map[ticker] = stock_code
 
     return ticker_map
@@ -41,7 +42,7 @@ def get_stock_code(ticker, ticker_map):
 
 def get_stock_price(ticker, start_date, end_date):
     # Load the ticker map from the file
-    ticker_map = load_ticker_map('data/ticker_map.txt')
+    ticker_map = load_ticker_map("data/ticker_map.txt")
 
     stock_code = get_stock_code(ticker, ticker_map)
 
@@ -49,17 +50,11 @@ def get_stock_price(ticker, start_date, end_date):
 
     ticker_data = ticker_data.reset_index()
 
-
     return ticker_data
-
-
 
 
 if __name__ == "__main__":
 
     # Example usage for getting stock price data of GENM from 2000-01-01 to 2023-09-29
-    genm_data = get_stock_price('GENM', "2000-01-01", "2023-09-29")
+    genm_data = get_stock_price("GENM", "2000-01-01", "2023-09-29")
     print(genm_data)
-
-
-
