@@ -22,6 +22,7 @@ class PicksResult:
     as_of: pd.Timestamp
     picks: pd.DataFrame
     contributions: pd.DataFrame
+    fundamentals: pd.DataFrame  # full fundamentals frame for explain/ module
     universe_stats: dict
     warnings: list[str] = field(default_factory=list)
 
@@ -91,6 +92,7 @@ def rank_universe(
         as_of=as_of_ts,
         picks=picks,
         contributions=contribs.loc[picks_idx],
+        fundamentals=fund.loc[picks_idx],
         universe_stats={
             "universe_size": int(len(uni)),
             "scored": int(scores.dropna().shape[0]),

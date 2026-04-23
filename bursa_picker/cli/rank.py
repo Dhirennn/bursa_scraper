@@ -95,5 +95,32 @@ def rank(
         console.print(f"[yellow]⚠ {w}[/yellow]")
 
     if narrative:
-        # Narrative rendering lands in CP9; here we stub a pointer.
-        console.print("[dim]--narrative paragraphs enabled after CP9.[/dim]")
+        from bursa_picker.explain.narrative import (
+            DISCLAIMER,
+            citations_footer,
+            render_pick,
+        )
+
+        console.print()
+        for ticker, row in result.picks.iterrows():
+            c = result.contributions.loc[ticker]
+            fund = result.fundamentals.loc[ticker]
+            para = render_pick(
+                ticker,
+                row,
+                c,
+                fund,
+                rank=int(row["rank"]),
+                total=len(result.picks),
+            )
+            console.print(para)
+            console.print()
+
+        console.print("[bold]Why this factor mix:[/bold]")
+        console.print(citations_footer(["quality", "value", "dividend", "momentum", "size", "sentiment"]))
+        console.print()
+        console.print(
+            "[italic dim]"
+            + DISCLAIMER.format(date=result.as_of.strftime("%Y-%m-%d"))
+            + "[/italic dim]"
+        )
