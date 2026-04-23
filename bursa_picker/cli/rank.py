@@ -17,14 +17,32 @@ def rank(
     top: int = typer.Option(20, "--top", help="Number of picks to output"),
     date: str = typer.Option("today", "--date", help="YYYY-MM-DD or 'today'"),
     narrative: bool = typer.Option(False, "--narrative", help="Print plain-English paragraphs"),
+    factors: Optional[str] = typer.Option(
+        None,
+        "--factors",
+        help="Comma-separated subset to enable (e.g. 'quality,value,dividend'). Default: all six.",
+    ),
+    sector_cap: Optional[float] = typer.Option(
+        None, "--sector-cap", help="Max share per sector in the top-N (e.g. 0.30)"
+    ),
     output: str = typer.Option("table", help="table|json"),
     refresh: bool = typer.Option(False, "--refresh", help="Force cache bust"),
 ) -> None:
     """Rank the filtered universe by the 6-factor composite score."""
+    weights_override = None
+    if factors:
+        allowed = {f.strip() for f in factors.split(",") if f.strip()}
+        unknown = allowed - {"quality", "value", "dividend", "momentum", "size", "sentiment"}
+        if unknown:
+            raise typer.BadParameter(f"Unknown factors: {sorted(unknown)}")
+        weights_override = {k: 1.0 for k in allowed}
+
     result = rank_universe(
         as_of=None if date == "today" else date,
         top_n=top,
+        weights=weights_override,
         refresh=refresh,
+        sector_cap=sector_cap,
     )
 
     if output == "json":

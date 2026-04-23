@@ -13,6 +13,7 @@ from bursa_picker.data.prices import fetch_prices_bulk
 from bursa_picker.data.universe import load_ticker_map, filter_universe
 from bursa_picker.factors import composite, momentum
 from bursa_picker.logging_setup import get_logger
+from bursa_picker.portfolio.sector_caps import apply_sector_cap
 
 log = get_logger(__name__)
 
@@ -34,6 +35,7 @@ def rank_universe(
     weights: Optional[dict[str, float]] = None,
     refresh: bool = False,
     sector_concentration_warn: float = 0.30,
+    sector_cap: Optional[float] = None,
     min_universe_warn: int = 100,
     max_workers: int = 8,
 ) -> PicksResult:
@@ -75,7 +77,12 @@ def rank_universe(
     scores, contribs = composite.score(fund, momentum_raw=mom_raw, weights=weights)
 
     ranked = scores.sort_values(ascending=False).dropna()
-    picks_idx = ranked.head(top_n).index
+    if sector_cap is not None and sector_cap > 0:
+        picks_idx = pd.Index(
+            apply_sector_cap(ranked, uni["sector"], top_n=top_n, max_share=sector_cap)
+        )
+    else:
+        picks_idx = ranked.head(top_n).index
     picks = uni.loc[picks_idx].copy()
     picks["score"] = ranked.loc[picks_idx]
     picks["rank"] = range(1, len(picks_idx) + 1)
