@@ -29,10 +29,13 @@ def version() -> None:
     typer.echo(__version__)
 
 
+from bursa_picker.cli import universe as _universe
+
+app.add_typer(_universe.app, name="universe")
+
 # Subcommands registered in later checkpoints:
 #   rank      → bursa_picker.cli.rank
 #   backtest  → bursa_picker.cli.backtest
-#   universe  → bursa_picker.cli.universe
 
 
 if __name__ == "__main__":
