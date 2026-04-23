@@ -1,0 +1,41 @@
+[paths]
+ticker_map = "data/ticker_map.txt"
+cache_dir = "cache"
+logs_dir = "logs"
+fixtures_dir = "data/fixtures"
+
+[universe]
+min_mcap_myr = 100_000_000
+min_adv_myr = 500_000
+min_price_myr = 0.20
+exclude_sectors = []
+
+[factors.weights]
+quality = 0.35
+value = 0.30
+dividend = 0.10
+momentum = 0.10
+size = 0.05
+sentiment = 0.10
+
+[factors.winsorize]
+lower = 0.01
+upper = 0.99
+
+[backtest]
+start = "2014-01-01"
+rebalance = "monthly"
+top_n = 20
+costs_bps = 50
+min_fee_myr = 8
+benchmark = "^KLSE"
+risk_free = 0.03
+
+[ratelimit]
+rps = 2.0
+max_retries = 4
+backoff_base = 1.5
+
+[cache]
+prices_ttl_hours = 18
+fundamentals_ttl_hours = 168

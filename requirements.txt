@@ -1,5 +1,12 @@
-yfinance
-pandas
-requests
-beautifulsoup4
-tqdm
+yfinance>=0.2
+pandas>=2.0
+numpy>=1.24
+requests>=2.31
+beautifulsoup4>=4.12
+tqdm>=4.66
+pydantic>=2.5
+pydantic-settings>=2.1
+typer>=0.9
+rich>=13.7
+tenacity>=8.2
+pyarrow>=14.0

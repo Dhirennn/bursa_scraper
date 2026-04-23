@@ -3,3 +3,17 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+
+# build / packaging
+*.egg-info/
+build/
+dist/
+
+# runtime
+cache/
+logs/
+*.sqlite
+*.sqlite-journal
+
+# notebooks
+.ipynb_checkpoints/
