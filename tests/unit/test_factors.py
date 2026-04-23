@@ -52,15 +52,26 @@ def test_zscore_handles_zero_variance():
     assert (z == 0).all()
 
 
-def test_sector_neutralize_subtracts_group_mean():
-    s = pd.Series([1.0, 3.0, 2.0, 4.0], index=list("ABCD"))
-    sectors = pd.Series(["X", "X", "Y", "Y"], index=list("ABCD"))
-    out = base.sector_neutralize(s, sectors)
-    # sector X mean = 2, sector Y mean = 3
+def test_sector_neutralize_subtracts_group_mean_when_sector_big_enough():
+    s = pd.Series([1.0, 3.0, 2.0, 2.0, 4.0, 3.0], index=list("ABCDEF"))
+    sectors = pd.Series(["X", "X", "X", "Y", "Y", "Y"], index=list("ABCDEF"))
+    out = base.sector_neutralize(s, sectors, min_sector_size=3)
+    # X mean = 2, Y mean = 3
     assert out["A"] == -1.0
     assert out["B"] == 1.0
-    assert out["C"] == -1.0
-    assert out["D"] == 1.0
+    assert out["C"] == 0.0
+    assert out["D"] == -1.0
+    assert out["E"] == 1.0
+    assert out["F"] == 0.0
+
+
+def test_sector_neutralize_falls_back_to_global_for_small_sectors():
+    s = pd.Series([1.0, 3.0, 2.0, 5.0], index=list("ABCD"))
+    # Each sector has only 1 stock; should demean against global mean = 2.75
+    sectors = pd.Series(["X", "Y", "Z", "W"], index=list("ABCD"))
+    out = base.sector_neutralize(s, sectors, min_sector_size=3)
+    assert abs(out["A"] - (1.0 - 2.75)) < 1e-9
+    assert abs(out["D"] - (5.0 - 2.75)) < 1e-9
 
 
 def test_quality_higher_for_more_profitable():

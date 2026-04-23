@@ -24,16 +24,22 @@ def zscore(s: pd.Series) -> pd.Series:
     return (s - mu) / sd
 
 
-def sector_neutralize(s: pd.Series, sectors: pd.Series) -> pd.Series:
+def sector_neutralize(
+    s: pd.Series, sectors: pd.Series, min_sector_size: int = 3
+) -> pd.Series:
     """Subtract per-sector mean from each stock's score.
 
-    ``sectors`` must align with ``s`` on index. NaN sectors are bucketed as
-    'Unknown' and neutralized within that bucket; after neutralization the
-    'Unknown' bucket is re-standardized against the whole-universe mean/std
-    so it doesn't become a pocket of inflated z-scores.
+    Sectors with fewer than ``min_sector_size`` stocks are demeaned against
+    the *global* mean instead. This avoids degenerate cases where a
+    single-stock sector would subtract itself and produce an exact-zero
+    z-score.
     """
     sectors = sectors.reindex(s.index).fillna("Unknown")
-    demeaned = s.groupby(sectors).transform(lambda x: x - x.mean(skipna=True))
+    counts = sectors.value_counts()
+    small_sectors = set(counts[counts < min_sector_size].index)
+
+    effective = sectors.where(~sectors.isin(small_sectors), other="__GLOBAL__")
+    demeaned = s.groupby(effective).transform(lambda x: x - x.mean(skipna=True))
     return demeaned
 
 
