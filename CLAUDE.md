@@ -4,53 +4,129 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BURSA Malaysia stock screener. Scrapes the full Bursa ticker list, fetches price history via Yahoo Finance, and flags stocks whose EMA18 just crossed above EMA50 (a bullish crossover signal).
+`bursa-picker` — a research-backed, explainable factor-based stock picker for
+Bursa Malaysia. Six literature-weighted factors (quality, value, dividend,
+momentum, size, analyst sentiment) feed a cross-sectional ranker with
+plain-English per-pick narratives and citations. A price-only walk-forward
+backtest validates the strategy vs `^KLSE`.
 
 ## Commands
 
-Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip install -e .                   # installs the `bursa-picker` CLI
+pytest                             # full test suite (unit + integration)
+pytest tests/unit/test_factors.py  # single file
+pytest -k quality                  # by substring
+bursa-picker universe              # filtered tradable universe
+bursa-picker rank --top 20         # top-N picks
+bursa-picker rank --top 10 --narrative   # picks + plain-English paragraphs
+bursa-picker rank --output json    # JSON for tooling
+bursa-picker backtest --start 2014-01-01 --end today --top 20
+bursa-picker --refresh             # force cache bust
 ```
 
-Run the screener (must be run from the `src/` directory — see "Working directory" below):
-```bash
-cd src
-python main.py
-```
-
-Individual modules have `__main__` blocks for ad-hoc testing, also run from `src/`:
-```bash
-cd src
-python scraper.py                     # Test ticker-code + analyst-projection scraping for PETGAS
-python ticker_data_retrieval.py       # Fetch GENM price history
-python exponential_moving_average.py  # Compute EMA columns for GENM
-python rsi.py                         # Compute RSI for PETGAS
-```
-
-There are no tests, linter config, or build system in this repo.
+No separate lint/build step — deps are managed via `pyproject.toml` and tests
+are the main gate.
 
 ## Architecture
 
-Pipeline in `src/main.py`:
+```
+bursa_picker/
+├── config.py              # pydantic-settings loader for config.toml
+├── constants.py           # BENCHMARK, FACTOR_NAMES, UNKNOWN_SECTOR
+├── logging_setup.py       # rotating file + console, in-proc metrics
+├── data/
+│   ├── ratelimit.py       # token-bucket @throttle + tenacity @with_retry
+│   ├── prices.py          # SQLite-cached OHLCV fetcher + bulk parallel
+│   ├── fundamentals.py    # SQLite-cached .info snapshots (7d TTL)
+│   ├── universe.py        # load+dedup ticker_map, liquidity filter
+│   └── scraper.py         # LEGACY i3investor/malaysiastock helpers (off critical path)
+├── factors/
+│   ├── base.py            # winsorize, zscore, sector_neutralize(min_sector_size=3)
+│   ├── citations.py       # Citation dataclass + committed paper metadata
+│   ├── quality.py, value.py, dividend.py, momentum.py, size.py, sentiment.py
+│   └── composite.py       # winsorize → z → sector-neutralize → weighted sum
+├── portfolio/
+│   └── construction.py    # rank_universe(): universe → funds → prices → score → top-N
+├── backtest/
+│   ├── engine.py          # monthly walk-forward, price-only factors
+│   ├── costs.py           # cost_fraction(turnover, bps) + per-trade MYR floor
+│   ├── metrics.py         # CAGR, Sharpe, MaxDD, HitRate
+│   └── runner.py          # glues engine to the real data layer
+├── explain/
+│   └── narrative.py       # template-assembled per-pick paragraphs + citations footer
+└── cli/
+    ├── main.py            # Typer root: `bursa-picker`
+    ├── universe.py        # `bursa-picker universe`
+    ├── rank.py            # `bursa-picker rank [--narrative] [--output json]`
+    └── backtest.py        # `bursa-picker backtest`
+```
 
-1. `scraper.get_stock_list()` scrapes the ticker list from `malaysiastock.biz/Stock-Screener.aspx`.
-2. `ThreadPoolExecutor.map(process_ema, stock_list)` fans out one worker per ticker.
-3. For each ticker, `exponential_moving_average.process_ema` calls `ticker_data_retrieval.get_stock_price`, which:
-   - Loads `../data/ticker_map.txt` into a `{TICKER: CODE}` dict.
-   - Appends `.KL` to the code and fetches OHLC via `yfinance.Ticker(...).history(start, end)`.
-4. EMA18/50/100/200 are added as DataFrame columns; `check_EMA_crossing` returns `True` when `EMA18 > EMA50` today **and** `EMA18 < EMA50` yesterday **and** the series has ≥51 rows.
-5. Surviving tickers are printed with their stock codes.
+Data flow for `rank`:
+1. `universe.load_ticker_map()` → deduped `{TICKER: STOCK_CODE}`.
+2. `universe.filter_universe()` applies min_mcap / min_adv / min_price gates
+   using cached fundamentals + cached 30-day ADV from prices.
+3. `fetch_fundamentals_bulk()` (parallel, cached) + `fetch_prices_bulk()`
+   (parallel, cached, ~14mo for 12-1 momentum).
+4. `factors.composite.score()` runs each factor: raw → winsorize → z-score →
+   sector-neutralize (min_sector_size=3, else global fallback) → weighted.
+5. `portfolio.construction.rank_universe()` returns `PicksResult(picks,
+   contributions, fundamentals, universe_stats, warnings)`.
+6. `cli/rank.py` renders rich table + optional narrative paragraphs via
+   `explain.narrative.render_pick()` + citations footer.
 
-`scraper.py` also exposes unused-by-main helpers (`get_ticker_code`, `update_tickers_number`, `get_price_target`, `get_analyst_projections`) that scrape `i3investor.com`. `rsi.py` implements RSI but is not wired into the main pipeline.
+Invariant: contributions DataFrame excluding `_n_missing` column, row-summed,
+equals the score Series (unit-tested).
 
-## Repository Conventions & Gotchas
+## Factor design (committed, not tuned)
 
-- **Working directory.** All file paths are hardcoded relative (`"../data/ticker_map.txt"`, `"data"`). Scripts assume CWD is `src/`. Running `python src/main.py` from the repo root will fail.
-- **Mixed import style in `main.py`.** `main.py` mixes flat imports (`from scraper import ...`) with a package-style one (`from src.ticker_data_retrieval import ...`). Both happen to resolve when invoked from `src/` because `src/` is on `sys.path` as the script dir and the repo root is the parent, but this is fragile — prefer flat imports (`from ticker_data_retrieval import ...`) for consistency.
-- **Duplicated `ticker_map.txt`.** Copies exist at both `data/ticker_map.txt` and `src/ticker_map.txt`. The code reads `../data/ticker_map.txt`; the `src/` copy is stale/unused. Avoid editing the `src/` copy.
-- **`update_tickers_number` appends.** It opens `../data/ticker_map.txt` in `"a"` mode and never dedupes; the existing file already contains duplicate lines (e.g. `3A : 0012` twice). Truncate first if regenerating.
-- **Regex fallback code `4715`.** When `get_ticker_code` can't parse the stock code from i3investor HTML, it silently returns `4715` (Genting Malaysia's code). Any ticker mapped to `4715` in `ticker_map.txt` other than `GENM` itself is almost certainly a scrape failure that needs manual fixing — see the README note.
-- **Date range is hardcoded.** `process_ema` fetches `2018-01-01` → `2023-09-29`. Update both endpoints when refreshing; there is no config layer.
-- **Silent exception swallowing.** `process_ema` returns `None` on any exception (network, yfinance, parsing). When debugging why a stock is missing from the output, add logging inside the `except` before assuming it failed the EMA filter.
-- **Empty `src/.env`.** Present but unused; no env vars are read anywhere.
+| Factor              | Weight | Raw formula                                                                 | Citation              |
+|---------------------|-------:|-----------------------------------------------------------------------------|-----------------------|
+| quality             | 0.35   | 0.5·ROE + 0.5·(profitMargins · totalRevenue / assets_proxy)                 | Novy-Marx (2013)      |
+| value               | 0.30   | mean of z(1/P/B), z(1/P/E), z(1/P/S)                                        | Fama-French (1992)    |
+| dividend            | 0.10   | dividendYield · min(1, (1−payoutRatio)+0.5)                                 | Arnott-Asness (2003)  |
+| momentum            | 0.10   | close(t−21)/close(t−252) − 1, sector-neutralized                            | Jegadeesh-Titman (1993) |
+| size                | 0.05   | −log(marketCap), winsorized at 20th pct                                     | Fama-French (1992)    |
+| sentiment           | 0.10   | 0.5·z(−recMean) + 0.5·z(upside), only when numberOfAnalystOpinions ≥ 3      | Womack (1996)         |
+
+Notes:
+- Momentum is kept *soft* — Bursa Carhart 4F study (2011-2021) found it not
+  significant on size-sorted portfolios. The narrative always says so.
+- Low-volatility / BAB is deliberately **not** a factor: Sehgal et al. (2022)
+  found it not significant in Indonesia/Korea/Japan-like EMs. Don't add it.
+- Universe liquidity filter (min RM 100m mcap, min RM 500k ADV, min RM 0.20
+  price) runs *before* the size factor so size-tilt doesn't load onto shell
+  companies.
+
+## Gotchas for future agents
+
+- **Always** pass `-c user.name=Dhiren -c user.email=mandhirensingh@gmail.com`
+  on `git commit` in this session until a fresh Claude Code session picks up
+  the global env vars from `~/.claude/settings.json`. The user confirmed this
+  in conversation after an earlier author-attribution regression.
+- Tests sandbox `config.get_settings()` via monkeypatch — when writing new
+  modules that read settings, always call `get_settings()` lazily (inside
+  functions), never bind the result at import time, or tests cannot override
+  the cache directory.
+- yfinance rate-limits aggressively; rely on `data.ratelimit.throttle` +
+  `with_retry` decorators on every outbound call, never call `yf.Ticker`
+  directly in new code.
+- `.info['dividendYield']` switched between fraction and percent across
+  yfinance versions; `factors/dividend.py` coerces values >1 by /100.
+- `debtToEquity` from yfinance is in *percent* for KLSE (e.g. 74 means 74%),
+  not a ratio; `factors/quality.py` divides by 100 when the raw value
+  exceeds 5.
+- Historical financial statements (`Ticker.financials`, `.balance_sheet`,
+  `.cashflow`, and their quarterly variants) are **empty** for `<code>.KL`
+  tickers on free yfinance. Do not assume they'll ever populate. The
+  backtest uses price-only factors for this reason.
+- `data/scraper.py` is the old i3investor/malaysiastock.biz scraper, kept
+  but OFF the critical path. It has known regex-fallback bugs (returns
+  "4715" for GENM when parsing fails) and `malaysiastock.biz` 503s
+  intermittently. Only used as a manual `ticker_map.txt` refresh tool.
+- Integration test `test_rank_e2e.py` uses a fake `yf.Ticker`; never allow
+  tests to touch the real network. If you add a new fetch path, sandbox it
+  the same way (see `tests/integration/conftest`-style fixtures).
+- The `scripts/` directory contains deprecation shims for the old flat-file
+  entry points (`main.py`, `run_screener.py`). New entry points go through
+  Typer in `bursa_picker/cli/`.

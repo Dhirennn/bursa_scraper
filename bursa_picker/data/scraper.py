@@ -1,5 +1,9 @@
-"""
-This file contains functions that are used to scrape data from the web.
+"""Optional scrapers for i3investor.com and malaysiastock.biz.
+
+NOT on the critical path for `bursa-picker rank` or `bursa-picker backtest`.
+These helpers are fragile (HTML structure can change; regex may fall back
+to "4715" on parse failures) and are kept only as a manual way to refresh
+``data/ticker_map.txt`` offline when Bursa lists/delists stocks.
 """
 
 import requests
