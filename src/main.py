@@ -4,7 +4,7 @@ from scraper import get_stock_list
 from exponential_moving_average import process_ema
 from tqdm import tqdm
 
-from src.ticker_data_retrieval import get_stock_code, load_ticker_map
+from ticker_data_retrieval import get_stock_code, load_ticker_map
 
 
 def main():
